@@ -2,15 +2,6 @@
 
 FinalStint is a multi-project repository containing several web applications and tools, including productivity apps and interactive dashboards. Each project is self-contained with its own frontend and backend components where applicable.
 
-## Tech Stack
-
-- **Frontend**: HTML, CSS, JavaScript
-- **Languages**: 
-  - JavaScript: 39.4%
-  - HTML: 37.6%
-  - CSS: 17.6%
-  - Python: 7.3%
-
 ## Projects
 
 ### 1. **Pomodoro Timer**
