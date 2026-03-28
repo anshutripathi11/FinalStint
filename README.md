@@ -63,7 +63,7 @@ git clone https://github.com/anshutripathi11/FinalStint.git
 cd FinalStint
 
 2. Open the desired project in your browser:
-  Main Application: Open index.html directly
+  Main Application: Open index.html 
   Pomodoro: Open pomodoro/index.html
   RaceIQ: Open raceiq/Dashboard.html
   GridWalk: See gridwalk/README.md for specific setup instructions
