@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GRIDLINE — F1 Command Center</title>
+<title>F1nalStint</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -488,17 +488,7 @@ body::before {
          Geometric F1-inspired mark.
          Replace this <svg> with your brand logo. -->
     <div class="logo-mark">
-      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z"
-              stroke="var(--red)" stroke-width="1.4" fill="none" opacity="0.55"/>
-        <line x1="10" y1="12" x2="22" y2="12" stroke="var(--text-primary)" stroke-width="1.8" stroke-linecap="round"/>
-        <line x1="10" y1="16" x2="18" y2="16" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round"/>
-        <line x1="10" y1="20" x2="15" y2="20" stroke="var(--text-primary)" stroke-width="1.8" stroke-linecap="round" opacity="0.35"/>
-      </svg>
-    </div>
-    <div class="logo-wordmark">
-      <span class="logo-name">Gridline</span>
-      <span class="logo-tag">F1 Command Center</span>
+      <img src="logo.jpeg" alt="Logo" style="width:200%;height:200%;object-fit:contain;">
     </div>
   </a>
   <div class="nav-right">
@@ -518,7 +508,7 @@ body::before {
       <p class="hero-desc">Archives. Predictions. Focus sessions. Three modules, one mission control — built for the grid.</p>
 
       <div class="hero-modules">
-        <a href="#archives" class="mod-btn" data-m="archives">
+        <a href="http://localhost:3000/" class="mod-btn" data-m="archives">
           <div class="mod-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
@@ -532,7 +522,7 @@ body::before {
           <span class="mod-arrow">&#8594;</span>
         </a>
 
-        <a href="#predictions" class="mod-btn" data-m="predictions">
+        <a href="raceiq/Dashboard.html" class="mod-btn" data-m="predictions">
           <div class="mod-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -545,7 +535,7 @@ body::before {
           <span class="mod-arrow">&#8594;</span>
         </a>
 
-        <a href="#pomodoro" class="mod-btn" data-m="pomodoro">
+        <a href="pomodoro/index.html" class="mod-btn" data-m="pomodoro">
           <div class="mod-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -677,8 +667,7 @@ function drain() {
 const mn = { archives: 'F1 Archives', predictions: 'Predictions', pomodoro: 'Pomodoro' };
 document.querySelectorAll('.mod-btn').forEach(b => {
   b.addEventListener('click', e => {
-    e.preventDefault();
-    showToast('Loading ' + mn[b.dataset.m] + '... Stand by.');
+    // Allow normal navigation — no preventDefault
   });
 });
 </script>
