@@ -1,4 +1,4 @@
-# FinalStint
+# F1nalStint
 
 FinalStint is a multi-project repository containing several web applications and tools, including productivity apps and interactive dashboards. Each project is self-contained with its own frontend and backend components where applicable.
 
