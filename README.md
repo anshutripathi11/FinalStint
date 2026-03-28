@@ -48,3 +48,22 @@ The primary index and entry point for the repository.
 - `index.html` - Main landing page
 - `logo.jpeg` - Project branding
 
+## Getting Started
+
+### Prerequisites
+- A modern web browser (Chrome, Firefox, Safari, Edge)
+- No build tools or dependencies required for basic projects
+- Python may be required for GridWalk backend components
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/anshutripathi11/FinalStint.git
+cd FinalStint
+
+2. Open the desired project in your browser:
+  Main Application: Open index.html directly
+  Pomodoro: Open pomodoro/index.html
+  RaceIQ: Open raceiq/Dashboard.html
+  GridWalk: See gridwalk/README.md for specific setup instructions
