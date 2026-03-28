@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeQuantum — F1 Race Control</title>
+
+  <!-- Orbitron: headings, labels, race UI chrome -->
+  <!-- JetBrains Mono: timer digits, sector times, telemetry readouts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       STATUS BAR — Fixed top bar spanning full viewport width.
+       Left: live race status. Center: session type badge.
+       Right: lap counter + penalty badge.
+  ═══════════════════════════════════════════════════════════════ -->
+  <header class="status-bar" id="statusBar" role="banner">
+    <div class="status-bar__left">
+      <!-- Colored dot reflects current state: green=running, red=paused, yellow=flag -->
+      <span class="status-dot" id="statusDot" aria-hidden="true"></span>
+      <span class="status-text" id="statusText">READY TO RACE</span>
+    </div>
+
+    <div class="status-bar__center">
+      <span class="session-badge" id="sessionBadge">FOCUS SESSION</span>
+    </div>
+
+    <div class="status-bar__right">
+      <span class="lap-counter" id="lapCounter">LAP 1</span>
+      <!-- Penalty badge — hidden when 0 penalties -->
+      <span class="penalty-badge" id="penaltyBadge" aria-label="Penalties" hidden>
+        <span class="penalty-badge__icon">⚠</span>
+        <span id="penaltyBadgeCount">0</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MAIN DASHBOARD — Two-panel layout: sidebar + center stage
+  ═══════════════════════════════════════════════════════════════ -->
+  <main class="dashboard" role="main">
+
+    <!-- ─────────────────────────────────────────────────────────
+         LEFT SIDEBAR — Timing tower + tire selector + wear bar
+    ───────────────────────────────────────────────────────── -->
+    <aside class="sidebar" aria-label="Timing tower and tire strategy">
+
+      <!-- TIMING TOWER — Last 5 session rows like F1 broadcast -->
+      <section class="timing-tower glass-card" aria-label="Session timing tower">
+        <h2 class="section-label">TIMING TOWER</h2>
+
+        <div class="tower-rows" id="towerRows">
+          <!-- Active session row — always at top, highlighted -->
+          <div class="tower-row tower-row--active" id="towerRowActive" role="row">
+            <span class="tower-pos">P1</span>
+            <span class="tower-duration" id="towerActiveDuration">00:00</span>
+            <span class="tower-tire tower-tire--medium" aria-label="Medium tire"></span>
+            <div class="tower-sectors" aria-label="Sector indicators">
+              <span class="tower-sector-dot tower-sector-dot--pending"></span>
+              <span class="tower-sector-dot tower-sector-dot--pending"></span>
+              <span class="tower-sector-dot tower-sector-dot--pending"></span>
+            </div>
+          </div>
+
+          <!-- Historical rows P2–P5 — filled by JS from localStorage -->
+          <div class="tower-row" id="towerRow2" role="row">
+            <span class="tower-pos">P2</span>
+            <span class="tower-duration">—</span>
+            <span class="tower-tire tower-tire--empty" aria-label="No tire data"></span>
+            <div class="tower-sectors" aria-label="Sector indicators">
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+            </div>
+          </div>
+          <div class="tower-row" id="towerRow3" role="row">
+            <span class="tower-pos">P3</span>
+            <span class="tower-duration">—</span>
+            <span class="tower-tire tower-tire--empty" aria-label="No tire data"></span>
+            <div class="tower-sectors" aria-label="Sector indicators">
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+            </div>
+          </div>
+          <div class="tower-row" id="towerRow4" role="row">
+            <span class="tower-pos">P4</span>
+            <span class="tower-duration">—</span>
+            <span class="tower-tire tower-tire--empty" aria-label="No tire data"></span>
+            <div class="tower-sectors" aria-label="Sector indicators">
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+            </div>
+          </div>
+          <div class="tower-row" id="towerRow5" role="row">
+            <span class="tower-pos">P5</span>
+            <span class="tower-duration">—</span>
+            <span class="tower-tire tower-tire--empty" aria-label="No tire data"></span>
+            <div class="tower-sectors" aria-label="Sector indicators">
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+              <span class="tower-sector-dot tower-sector-dot--empty"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TIRE COMPOUND SELECTOR — Soft/Medium/Hard duration presets -->
+      <section class="tire-selector glass-card" aria-label="Tire compound and session duration">
+        <h2 class="section-label">COMPOUND</h2>
+
+        <div class="tire-badges" role="radiogroup" aria-label="Select tire compound">
+          <!-- Soft: 15min sprint — red dot like real F1 tire markings -->
+          <button
+            class="tire-badge tire-badge--soft"
+            id="tireSoft"
+            role="radio"
+            aria-checked="false"
+            data-duration="900"
+            data-label="SOFT"
+          >
+            <span class="tire-badge__ring" aria-hidden="true"></span>
+            <span class="tire-badge__label">S</span>
+            <span class="tire-badge__name">SOFT</span>
+            <span class="tire-badge__time">15 MIN</span>
+            <span class="tire-badge__key" aria-hidden="true">[1]</span>
+            <span class="tire-badge__selected">SELECTED</span>
+          </button>
+
+          <!-- Medium: 25min default — yellow dot -->
+          <button
+            class="tire-badge tire-badge--medium is-selected"
+            id="tireMedium"
+            role="radio"
+            aria-checked="true"
+            data-duration="1500"
+            data-label="MEDIUM"
+          >
+            <span class="tire-badge__ring" aria-hidden="true"></span>
+            <span class="tire-badge__label">M</span>
+            <span class="tire-badge__name">MEDIUM</span>
+            <span class="tire-badge__time">25 MIN</span>
+            <span class="tire-badge__key" aria-hidden="true">[2]</span>
+            <span class="tire-badge__selected">SELECTED</span>
+          </button>
+
+          <!-- Hard: 45min endurance — white dot -->
+          <button
+            class="tire-badge tire-badge--hard"
+            id="tireHard"
+            role="radio"
+            aria-checked="false"
+            data-duration="2700"
+            data-label="HARD"
+          >
+            <span class="tire-badge__ring" aria-hidden="true"></span>
+            <span class="tire-badge__label">H</span>
+            <span class="tire-badge__name">HARD</span>
+            <span class="tire-badge__time">45 MIN</span>
+            <span class="tire-badge__key" aria-hidden="true">[3]</span>
+            <span class="tire-badge__selected">SELECTED</span>
+          </button>
+        </div>
+
+        <p class="stint-label">STINT: <span id="stintLabel">25 MIN</span></p>
+
+        <!-- TIRE WEAR BAR — depletes during session: green → yellow → red -->
+        <div class="tire-wear" aria-label="Tire wear indicator">
+          <div class="tire-wear__label-row">
+            <span class="tire-wear__label">TIRE WEAR</span>
+            <span class="tire-wear__pct" id="tireWearPct">100%</span>
+          </div>
+          <div class="tire-wear__track" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+            <div class="tire-wear__bar" id="tireWearBar"></div>
+          </div>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- ─────────────────────────────────────────────────────────
+         CENTER STAGE — Track map, gantry, controls, sector splits
+    ───────────────────────────────────────────────────────── -->
+    <section class="center-stage" aria-label="Race control center">
+
+      <!-- ··················································
+           TRACK MAP SVG — Bahrain-inspired circuit shape.
+           The car moves along the <path> using JS getPointAtLength().
+           Sector dots at ~1/3 and ~2/3 of total path length.
+      ···················································· -->
+      <div class="track-container" id="trackContainer">
+        <svg
+          class="track-svg"
+          id="trackSvg"
+          viewBox="0 0 500 380"
+          xmlns="http://www.w3.org/2000/svg"
+          role="img"
+          aria-label="F1 circuit track map with timer"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <defs>
+            <!-- Red glow filter for car and progress arc -->
+            <filter id="carGlow" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <!-- Larger ambient glow for track progress -->
+            <filter id="trackGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <!-- Green DRS glow — activated in final 20% of session -->
+            <filter id="drsGlow" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          <!--
+            BAHRAIN-INSPIRED CIRCUIT PATH
+            This path is a stylized approximation of Sakhir:
+            - Long back straight (right side)
+            - Fast sweeping S1 complex (top)
+            - Technical S2 chicane section (left)
+            - Wide S3 hairpins (bottom)
+            - Start/finish on the lower-right straight
+
+            The path is closed (Z) so the car loops continuously.
+            Total path length is calculated at runtime via getTotalLength().
+          -->
+          <path
+            id="trackOuterPath"
+            class="track-outer"
+            d="
+              M 380,300
+              L 420,300
+              C 455,300 470,280 470,250
+              L 470,180
+              C 470,150 455,135 430,130
+              L 400,125
+              C 375,120 360,105 360,80
+              C 360,55 378,40 405,40
+              C 432,40 450,55 450,78
+              C 450,100 435,112 415,112
+              C 395,112 382,100 382,80
+              C 382,62 392,52 405,52
+              L 320,40
+              C 280,40 255,55 240,80
+              L 200,140
+              C 185,165 160,170 135,160
+              C 110,150 90,130 90,105
+              C 90,78 108,60 135,60
+              C 158,60 175,75 175,98
+              C 175,120 160,132 140,132
+              L 60,132
+              C 38,132 25,148 25,170
+              L 25,250
+              C 25,295 50,325 95,335
+              L 200,345
+              C 260,350 310,340 340,320
+              L 380,300
+              Z
+            "
+            aria-hidden="true"
+          />
+
+          <!--
+            PROGRESS ARC — same path, drawn over the dim track.
+            JS sets stroke-dashoffset to show elapsed fraction.
+            stroke-dasharray is set from getTotalLength() at init.
+          -->
+          <path
+            id="trackProgressPath"
+            class="track-progress"
+            d="
+              M 380,300
+              L 420,300
+              C 455,300 470,280 470,250
+              L 470,180
+              C 470,150 455,135 430,130
+              L 400,125
+              C 375,120 360,105 360,80
+              C 360,55 378,40 405,40
+              C 432,40 450,55 450,78
+              C 450,100 435,112 415,112
+              C 395,112 382,100 382,80
+              C 382,62 392,52 405,52
+              L 320,40
+              C 280,40 255,55 240,80
+              L 200,140
+              C 185,165 160,170 135,160
+              C 110,150 90,130 90,105
+              C 90,78 108,60 135,60
+              C 158,60 175,75 175,98
+              C 175,120 160,132 140,132
+              L 60,132
+              C 38,132 25,148 25,170
+              L 25,250
+              C 25,295 50,325 95,335
+              L 200,345
+              C 260,350 310,340 340,320
+              L 380,300
+              Z
+            "
+            aria-hidden="true"
+          />
+
+          <!-- START/FINISH LINE — short perpendicular segment at M 380,300 -->
+          <line
+            id="startFinishLine"
+            class="start-finish-line"
+            x1="378" y1="290"
+            x2="378" y2="312"
+            aria-hidden="true"
+          />
+
+          <!-- SECTOR MARKER DOTS — JS positions these at 1/3 and 2/3 of path length -->
+          <circle id="sectorDot1" class="sector-dot sector-dot--s1" r="5" cx="0" cy="0" aria-hidden="true" />
+          <circle id="sectorDot2" class="sector-dot sector-dot--s2" r="5" cx="0" cy="0" aria-hidden="true" />
+
+          <!-- F1 CAR — small elongated shape that moves + rotates along the path.
+               Positioned at the start point initially; JS updates transform each frame.
+               The car is a group so the glow filter applies to the whole shape. -->
+          <g id="carGroup" class="car-group" filter="url(#carGlow)" aria-hidden="true" will-change="transform">
+            <!-- Car body: elongated rectangle -->
+            <rect class="car-body" x="-10" y="-3" width="20" height="6" rx="1" />
+            <!-- Rear wing fin: wider bar at rear -->
+            <rect class="car-wing" x="-11" y="-5" width="5" height="10" rx="1" />
+            <!-- Cockpit: small centered highlight -->
+            <rect class="car-cockpit" x="-1" y="-2" width="6" height="4" rx="1" />
+          </g>
+
+          <!-- DRS ENABLED BADGE — appears when ≤20% time remains -->
+          <g id="drsBadge" class="drs-badge" aria-live="polite" aria-atomic="true" visibility="hidden">
+            <rect x="165" y="155" width="80" height="18" rx="2" class="drs-badge__bg" />
+            <text x="205" y="168" text-anchor="middle" class="drs-badge__text">DRS ENABLED</text>
+          </g>
+
+          <!-- CENTER TIMER GROUP — MM:SS + LAP label + session mode -->
+          <g class="center-timer-group" aria-live="polite" aria-atomic="true">
+            <!-- LAP label above the time -->
+            <text id="svgLapLabel" class="svg-lap-label" x="250" y="188" text-anchor="middle">LAP 1</text>
+            <!-- Main timer digits — dominant visual element -->
+            <text id="svgTimerDigits" class="svg-timer-digits" x="250" y="232" text-anchor="middle">25:00</text>
+            <!-- Session mode below: FOCUS / PIT -->
+            <text id="svgSessionMode" class="svg-session-mode" x="250" y="255" text-anchor="middle">MEDIUM</text>
+          </g>
+
+        </svg>
+      </div><!-- /.track-container -->
+
+      <!-- ··················································
+           5-LIGHT START GANTRY
+           Dark housings, lights illuminate left-to-right.
+      ···················································· -->
+      <div class="gantry" id="gantry" aria-label="Start lights sequence" role="img">
+        <div class="gantry__housing">
+          <div class="gantry__light" id="gantryLight1" data-index="0"></div>
+        </div>
+        <div class="gantry__housing">
+          <div class="gantry__light" id="gantryLight2" data-index="1"></div>
+        </div>
+        <div class="gantry__housing">
+          <div class="gantry__light" id="gantryLight3" data-index="2"></div>
+        </div>
+        <div class="gantry__housing">
+          <div class="gantry__light" id="gantryLight4" data-index="3"></div>
+        </div>
+        <div class="gantry__housing">
+          <div class="gantry__light" id="gantryLight5" data-index="4"></div>
+        </div>
+      </div>
+
+      <!-- ··················································
+           CONTROL BUTTONS — Pit wall console aesthetic.
+           Each button wrapped in .btn-group for keyboard hint label.
+      ···················································· -->
+      <div class="controls" role="group" aria-label="Timer controls">
+        <div class="btn-group">
+          <button class="btn btn--start" id="btnStart">START</button>
+          <span class="btn-hint" aria-hidden="true">[SPACE]</span>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn--pause" id="btnPause" disabled>PAUSE</button>
+          <span class="btn-hint" aria-hidden="true">[SPACE]</span>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn--abort" id="btnAbort">ABORT</button>
+          <span class="btn-hint" aria-hidden="true">[R]</span>
+        </div>
+      </div>
+
+      <!-- ··················································
+           SECTOR SPLITS BAR — 3 segments: S1 / S2 / S3
+           Each fills as that third of the session elapses.
+      ···················································· -->
+      <div class="sector-bar" aria-label="Sector split times">
+        <div class="sector-bar__segment" id="sectorSegment1">
+          <span class="sector-bar__label">S1</span>
+          <div class="sector-bar__track">
+            <div class="sector-bar__fill" id="sectorFill1"></div>
+          </div>
+          <span class="sector-bar__time" id="sectorTime1">—:——</span>
+        </div>
+        <div class="sector-bar__segment" id="sectorSegment2">
+          <span class="sector-bar__label">S2</span>
+          <div class="sector-bar__track">
+            <div class="sector-bar__fill" id="sectorFill2"></div>
+          </div>
+          <span class="sector-bar__time" id="sectorTime2">—:——</span>
+        </div>
+        <div class="sector-bar__segment" id="sectorSegment3">
+          <span class="sector-bar__label">S3</span>
+          <div class="sector-bar__track">
+            <div class="sector-bar__fill" id="sectorFill3"></div>
+          </div>
+          <span class="sector-bar__time" id="sectorTime3">—:——</span>
+        </div>
+      </div>
+
+    </section><!-- /.center-stage -->
+
+  </main><!-- /.dashboard -->
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       BOTTOM TELEMETRY BAR — Full-width stats strip
+       Mirrors the F1 broadcast's persistent timing overlays.
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="telemetry-bar" id="telemetryBar" role="contentinfo">
+
+    <div class="telemetry-card telemetry-card--red" aria-label="Laps completed">
+      <span class="telemetry-label">LAPS</span>
+      <span class="telemetry-value" id="statLaps">0</span>
+    </div>
+
+    <div class="telemetry-card telemetry-card--green" aria-label="Total minutes focused">
+      <span class="telemetry-label">MINUTES</span>
+      <span class="telemetry-value" id="statMinutes">0</span>
+    </div>
+
+    <div class="telemetry-card telemetry-card--yellow" aria-label="Current focus streak">
+      <span class="telemetry-label">STREAK</span>
+      <span class="telemetry-value" id="statStreak">0</span>
+    </div>
+
+    <div class="telemetry-card telemetry-card--purple" aria-label="Best streak achieved">
+      <span class="telemetry-label">BEST STREAK</span>
+      <span class="telemetry-value" id="statBestStreak">0</span>
+    </div>
+
+    <div class="telemetry-card telemetry-card--white" aria-label="Average lap time">
+      <span class="telemetry-label">AVG LAP</span>
+      <span class="telemetry-value" id="statAvgLap">—:——</span>
+    </div>
+
+    <div class="telemetry-card telemetry-card--orange" aria-label="Total track penalties">
+      <span class="telemetry-label">PENALTIES</span>
+      <span class="telemetry-value" id="statPenalties">0</span>
+    </div>
+
+    <button class="btn btn--reset-season" id="btnResetSeason">RESET SEASON</button>
+
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       OVERLAY LAYER — All hidden by default, shown by JS
+  ═══════════════════════════════════════════════════════════════ -->
+
+  <!-- YELLOW FLAG OVERLAY — tab-away penalty screen -->
+  <div
+    class="overlay yellow-flag-overlay"
+    id="yellowFlagOverlay"
+    role="alertdialog"
+    aria-label="Yellow flag — track limits violation"
+    aria-modal="true"
+    aria-hidden="true"
+    hidden
+  >
+    <!-- Animated diagonal stripe border via ::before -->
+    <div class="yellow-flag-overlay__content">
+      <p class="yellow-flag-overlay__flag-text">⚠ YELLOW FLAG</p>
+      <p class="yellow-flag-overlay__subtitle">TRACK LIMITS VIOLATION</p>
+      <p class="yellow-flag-overlay__time-away">
+        TIME AWAY: <span id="yellowFlagTimeAway">0s</span>
+      </p>
+      <button class="btn btn--green-flag" id="btnGreenFlag">GREEN FLAG — RESUME</button>
+    </div>
+  </div>
+
+  <!-- PIT STOP MODAL — break timer centered overlay -->
+  <div
+    class="overlay pit-modal-overlay"
+    id="pitModalOverlay"
+    role="dialog"
+    aria-label="Pit stop break"
+    aria-modal="true"
+    aria-hidden="true"
+    hidden
+  >
+    <div class="pit-modal">
+      <p class="pit-modal__header">BOX BOX</p>
+      <p class="pit-modal__subheader">PIT STOP</p>
+      <!-- Animated tire icon: rotating circle with compound dot -->
+      <div class="pit-modal__tire" id="pitTireIcon" aria-hidden="true">
+        <div class="pit-modal__tire-ring"></div>
+        <div class="pit-modal__tire-center"></div>
+      </div>
+      <p class="pit-modal__countdown" id="pitCountdown">05:00</p>
+      <p class="pit-modal__status" id="pitStatus">CHANGE UNDERWAY</p>
+      <button class="btn btn--skip-pit" id="btnSkipPit">SKIP PIT STOP</button>
+    </div>
+  </div>
+
+  <!-- CHECKERED FLAG OVERLAY — brief full-viewport flash on session complete -->
+  <div
+    class="overlay checkered-flag-overlay"
+    id="checkeredFlagOverlay"
+    aria-hidden="true"
+    hidden
+  >
+    <p class="checkered-flag-overlay__text" id="checkeredFlagText">LAP COMPLETE</p>
+  </div>
+
+  <!-- TEAM RADIO TOAST CONTAINER — fixed right edge, toasts stack here -->
+  <div
+    class="toast-container"
+    id="toastContainer"
+    role="log"
+    aria-label="Team radio messages"
+    aria-live="polite"
+    aria-atomic="false"
+  ></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
