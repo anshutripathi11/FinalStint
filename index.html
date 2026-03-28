@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRIDLINE — F1 Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-void: #050508;
+  --bg-primary: #08080E;
+  --bg-elevated: #0D0D16;
+  --bg-surface: #12121E;
+  --bg-card: #16162A;
+  --red: #E10600;
+  --red-bright: #FF2D20;
+  --red-glow: rgba(225, 6, 0, 0.4);
+  --red-dim: rgba(225, 6, 0, 0.12);
+  --green: #00FF87;
+  --green-dim: rgba(0, 255, 135, 0.15);
+  --purple: #A855F7;
+  --purple-dim: rgba(168, 85, 247, 0.15);
+  --amber: #FDDB3A;
+  --amber-dim: rgba(253, 219, 58, 0.12);
+  --text-primary: #EAEAEA;
+  --text-secondary: rgba(234, 234, 234, 0.55);
+  --text-tertiary: rgba(234, 234, 234, 0.28);
+  --text-ghost: rgba(234, 234, 234, 0.10);
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --radius-sm: 2px;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Grain overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px;
+}
+
+/* Ambient light spills */
+.ambient {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(225, 6, 0, 0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 88% 82%, rgba(168, 85, 247, 0.02) 0%, transparent 70%);
+}
+
+/* Faint engineering grid */
+.grid-bg {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  opacity: 0.02;
+  background-image:
+    linear-gradient(var(--text-primary) 1px, transparent 1px),
+    linear-gradient(90deg, var(--text-primary) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 10%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 10%, transparent 75%);
+}
+
+/* ═══ TOPNAV ═══ */
+.topnav {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 54px; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 clamp(20px, 4vw, 48px);
+  background: rgba(5, 5, 8, 0.72);
+  backdrop-filter: blur(30px) saturate(1.2);
+  -webkit-backdrop-filter: blur(30px) saturate(1.2);
+  border-bottom: 1px solid var(--border);
+  animation: navIn 0.7s ease-out both;
+}
+@keyframes navIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+
+.logo-mark { width: 30px; height: 30px; }
+
+.logo-wordmark { display: flex; flex-direction: column; gap: 1px; }
+.logo-name {
+  font-family: 'Orbitron', sans-serif; font-weight: 800;
+  font-size: 0.78rem; letter-spacing: 0.22em;
+  text-transform: uppercase; line-height: 1;
+}
+.logo-tag {
+  font-family: 'JetBrains Mono', monospace; font-weight: 400;
+  font-size: 0.44rem; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--text-tertiary); line-height: 1;
+}
+
+.nav-right { display: flex; align-items: center; gap: 24px; }
+
+.nav-status { display: flex; align-items: center; gap: 8px; }
+.nav-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green-dim);
+  animation: breathe 3s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+.nav-status-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.5rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.nav-clock {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem; font-weight: 400;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 58px; text-align: right;
+}
+
+/* ═══ PAGE ═══ */
+.page {
+  position: relative; z-index: 1;
+  min-height: 100vh; padding-top: 54px;
+  display: flex; flex-direction: column;
+}
+
+/* ═══ HERO — asymmetric two-column ═══ */
+.hero {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  padding: 0 clamp(20px, 4vw, 56px);
+  min-height: calc(100vh - 54px - 64px);
+  gap: 40px;
+}
+
+/* Left text column */
+.hero-text {
+  max-width: 540px;
+  animation: textUp 0.9s ease-out 0.15s both;
+}
+@keyframes textUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem; font-weight: 500;
+  letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--red); margin-bottom: 22px;
+  display: flex; align-items: center; gap: 10px;
+}
+.hero-eyebrow::before {
+  content: ''; width: 28px; height: 1px; background: var(--red);
+}
+
+.hero-headline {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: clamp(2.6rem, 5.5vw, 4.4rem);
+  line-height: 1.0;
+  letter-spacing: -0.025em;
+  margin-bottom: 24px;
+}
+.hero-headline .accent { color: var(--red); }
+
+.hero-desc {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem; font-weight: 400;
+  line-height: 1.85; color: var(--text-secondary);
+  max-width: 400px; margin-bottom: 44px;
+}
+
+/* Module buttons */
+.hero-modules { display: flex; gap: 12px; }
+
+.mod-btn {
+  flex: 1; display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer; text-decoration: none; color: inherit;
+  transition: all 0.3s ease;
+  position: relative; overflow: hidden;
+}
+.mod-btn::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 100%; height: 2px;
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.mod-btn:nth-child(1)::before { background: var(--red); }
+.mod-btn:nth-child(2)::before { background: var(--purple); }
+.mod-btn:nth-child(3)::before { background: var(--green); }
+
+.mod-btn:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  background: var(--bg-elevated);
+}
+.mod-btn:hover::before { transform: scaleX(1); }
+.mod-btn:hover .mod-arrow { opacity: 1; transform: translateX(0); }
+
+.mod-icon {
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.mod-btn:nth-child(1) .mod-icon { background: var(--red-dim); }
+.mod-btn:nth-child(2) .mod-icon { background: var(--purple-dim); }
+.mod-btn:nth-child(3) .mod-icon { background: var(--green-dim); }
+.mod-icon svg { width: 18px; height: 18px; }
+
+.mod-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.mod-label {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 0.72rem; letter-spacing: 0.02em; white-space: nowrap;
+}
+.mod-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.46rem; font-weight: 400;
+  color: var(--text-tertiary);
+  letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+}
+
+.mod-arrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem; color: var(--text-secondary);
+  opacity: 0; transform: translateX(-4px);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+/* Right track column */
+.hero-visual {
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  animation: vizIn 1.1s ease-out 0.4s both;
+}
+@keyframes vizIn {
+  from { opacity: 0; transform: scale(0.9) translateY(16px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.track-wrap {
+  position: relative;
+  width: min(440px, 92%);
+  aspect-ratio: 1.15 / 1;
+}
+
+.track-svg { width: 100%; height: 100%; }
+
+.trk-bg {
+  fill: none; stroke: rgba(255,255,255,0.025);
+  stroke-width: 22; stroke-linecap: round; stroke-linejoin: round;
+}
+.trk-rail {
+  fill: none; stroke: rgba(255,255,255,0.055);
+  stroke-width: 5.5; stroke-linecap: round; stroke-linejoin: round;
+}
+.trk-glow {
+  fill: none; stroke: var(--red); stroke-width: 24;
+  stroke-linecap: round; stroke-linejoin: round;
+  opacity: 0.05; filter: blur(10px);
+  stroke-dasharray: var(--tl, 1200);
+  stroke-dashoffset: var(--tl, 1200);
+  animation: draw 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) 0.8s forwards;
+}
+.trk-active {
+  fill: none; stroke: var(--red); stroke-width: 2.5;
+  stroke-linecap: round; stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px var(--red-glow));
+  stroke-dasharray: var(--tl, 1200);
+  stroke-dashoffset: var(--tl, 1200);
+  animation: draw 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) 0.8s forwards;
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.sdot { opacity: 0; animation: dotPop 0.35s ease-out forwards; }
+.sdot.a { animation-delay: 1.8s; }
+.sdot.b { animation-delay: 2.1s; }
+.sdot.c { animation-delay: 2.4s; }
+@keyframes dotPop { from { opacity: 0; r: 0; } to { opacity: 1; r: 3.5; } }
+
+.car-el {
+  fill: var(--red-bright);
+  filter: drop-shadow(0 0 5px var(--red-glow)) drop-shadow(0 0 12px var(--red-dim));
+}
+
+/* Sector floating labels */
+.slbl {
+  position: absolute;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.46rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  opacity: 0; animation: lblIn 0.5s ease-out forwards;
+}
+.slbl-1 { top: 47%; left: -4%; color: var(--green); animation-delay: 2s; }
+.slbl-2 { top: 7%; right: 10%; color: var(--purple); animation-delay: 2.3s; }
+.slbl-3 { bottom: 3%; left: 38%; color: var(--text-tertiary); animation-delay: 2.6s; }
+@keyframes lblIn { to { opacity: 0.45; } }
+
+/* Center gantry */
+.trk-center {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column;
+  align-items: center; gap: 14px;
+  pointer-events: none;
+}
+
+.gantry { display: flex; gap: 9px; }
+.gl {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.015);
+  position: relative; overflow: hidden;
+}
+.gl .b {
+  position: absolute; inset: 3px; border-radius: 50%;
+  background: transparent; transition: all 0.2s ease;
+}
+.gl.on .b {
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red), 0 0 16px var(--red-glow);
+}
+
+.trk-lbl {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.44rem; font-weight: 700;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--text-tertiary); text-align: center;
+  transition: color 0.4s ease;
+}
+
+/* ═══ TELEMETRY STRIP ═══ */
+.tele {
+  height: 64px;
+  border-top: 1px solid var(--border);
+  background: rgba(5, 5, 8, 0.6);
+  backdrop-filter: blur(20px);
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(20px, 4vw, 48px);
+  animation: fadeUp 0.5s ease-out 1s both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tg { display: flex; gap: 32px; }
+.ti { display: flex; flex-direction: column; gap: 3px; position: relative; }
+.ti::after {
+  content: ''; position: absolute;
+  top: -14px; left: 0; width: 18px; height: 1.5px;
+}
+.ti:nth-child(1)::after { background: var(--red); }
+.ti:nth-child(2)::after { background: var(--green); }
+.ti:nth-child(3)::after { background: var(--purple); }
+.ti:nth-child(4)::after { background: var(--amber); }
+
+.tk {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.4rem; font-weight: 600;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.tv {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tv.g { color: var(--green); }
+
+.tr { display: flex; align-items: center; gap: 18px; }
+.tc { display: flex; align-items: center; gap: 7px; }
+.cc {
+  width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid;
+}
+.cc-s { background: var(--red); border-color: var(--red); }
+.cc-m { background: var(--amber); border-color: var(--amber); }
+.cc-h { background: var(--text-primary); border-color: var(--text-primary); }
+.cn {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.4rem; font-weight: 600;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* ═══ TOASTS ═══ */
+.toasts {
+  position: fixed; bottom: 82px;
+  right: clamp(20px, 4vw, 48px);
+  z-index: 200;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  width: 272px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--red);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  transform: translateX(120%);
+  animation: tsIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.toast.exit { animation: tsOut 0.28s ease-in forwards; }
+@keyframes tsIn { to { transform: translateX(0); } }
+@keyframes tsOut { to { transform: translateX(120%); opacity: 0; } }
+
+.toast-h {
+  display: flex; align-items: center; gap: 5px; margin-bottom: 4px;
+}
+.toast-h svg { width: 9px; height: 9px; opacity: 0.35; }
+.toast-h span {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.36rem; font-weight: 600;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.toast p {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem; font-weight: 400;
+  line-height: 1.55; color: var(--text-secondary);
+}
+
+/* ═══ RESPONSIVE ═══ */
+@media (max-width: 960px) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 36px clamp(20px, 4vw, 48px) 20px;
+    min-height: auto; gap: 24px;
+  }
+  .hero-text { max-width: 100%; text-align: center; }
+  .hero-eyebrow { justify-content: center; }
+  .hero-desc { margin: 0 auto 36px; }
+  .hero-modules { justify-content: center; flex-wrap: wrap; }
+  .hero-visual { order: -1; }
+  .track-wrap { width: min(320px, 85%); }
+  .slbl { display: none; }
+  .tr { display: none; }
+}
+
+@media (max-width: 600px) {
+  .hero-modules { flex-direction: column; }
+  .hero-headline { font-size: 2.1rem; }
+  .track-wrap { width: min(260px, 90%); }
+  .tg { gap: 16px; }
+  .ti:nth-child(4) { display: none; }
+  .tv { font-size: 0.65rem; }
+  .nav-status { display: none; }
+  .toasts { right: 12px; }
+  .toast { width: 220px; }
+}
+</style>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true"></div>
+<div class="grid-bg" aria-hidden="true"></div>
+
+<nav class="topnav">
+  <a href="#" class="logo">
+    <!-- ═══ PLACEHOLDER LOGO ═══
+         Geometric F1-inspired mark.
+         Replace this <svg> with your brand logo. -->
+    <div class="logo-mark">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z"
+              stroke="var(--red)" stroke-width="1.4" fill="none" opacity="0.55"/>
+        <line x1="10" y1="12" x2="22" y2="12" stroke="var(--text-primary)" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="10" y1="16" x2="18" y2="16" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="10" y1="20" x2="15" y2="20" stroke="var(--text-primary)" stroke-width="1.8" stroke-linecap="round" opacity="0.35"/>
+      </svg>
+    </div>
+    <div class="logo-wordmark">
+      <span class="logo-name">Gridline</span>
+      <span class="logo-tag">F1 Command Center</span>
+    </div>
+  </a>
+  <div class="nav-right">
+    <div class="nav-status">
+      <div class="nav-dot"></div>
+      <span class="nav-status-text">All Systems Online</span>
+    </div>
+    <div class="nav-clock" id="clock">--:--:--</div>
+  </div>
+</nav>
+
+<div class="page">
+  <section class="hero">
+    <div class="hero-text">
+      <div class="hero-eyebrow">Season 2026 Active</div>
+      <h1 class="hero-headline">Your race<br>command<br><span class="accent">center.</span></h1>
+      <p class="hero-desc">Archives. Predictions. Focus sessions. Three modules, one mission control — built for the grid.</p>
+
+      <div class="hero-modules">
+        <a href="#archives" class="mod-btn" data-m="archives">
+          <div class="mod-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+              <line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="13" y2="11"/>
+            </svg>
+          </div>
+          <div class="mod-info">
+            <span class="mod-label">F1 Archives</span>
+            <span class="mod-sub">Historical Data</span>
+          </div>
+          <span class="mod-arrow">&#8594;</span>
+        </a>
+
+        <a href="#predictions" class="mod-btn" data-m="predictions">
+          <div class="mod-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <div class="mod-info">
+            <span class="mod-label">Predictions</span>
+            <span class="mod-sub">AI Race Models</span>
+          </div>
+          <span class="mod-arrow">&#8594;</span>
+        </a>
+
+        <a href="#pomodoro" class="mod-btn" data-m="pomodoro">
+          <div class="mod-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div class="mod-info">
+            <span class="mod-label">Pomodoro</span>
+            <span class="mod-sub">Focus Timer</span>
+          </div>
+          <span class="mod-arrow">&#8594;</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="track-wrap">
+        <svg class="track-svg" viewBox="0 0 440 380" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="cg"><feGaussianBlur stdDeviation="2.5" result="bl"/><feMerge><feMergeNode in="bl"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <path class="trk-bg" id="tRef"
+            d="M 200,340 C 100,340 40,280 40,200 C 40,100 100,40 200,40 L 300,40 C 340,40 370,60 370,100 C 370,140 340,165 300,165 L 265,165 C 232,165 218,185 238,210 C 258,235 310,230 345,205 C 385,177 410,140 410,210 C 410,305 340,340 200,340 Z"/>
+          <path class="trk-rail"
+            d="M 200,340 C 100,340 40,280 40,200 C 40,100 100,40 200,40 L 300,40 C 340,40 370,60 370,100 C 370,140 340,165 300,165 L 265,165 C 232,165 218,185 238,210 C 258,235 310,230 345,205 C 385,177 410,140 410,210 C 410,305 340,340 200,340 Z"/>
+          <path class="trk-glow" id="tGlow"
+            d="M 200,340 C 100,340 40,280 40,200 C 40,100 100,40 200,40 L 300,40 C 340,40 370,60 370,100 C 370,140 340,165 300,165 L 265,165 C 232,165 218,185 238,210 C 258,235 310,230 345,205 C 385,177 410,140 410,210 C 410,305 340,340 200,340 Z"/>
+          <path class="trk-active" id="tAct"
+            d="M 200,340 C 100,340 40,280 40,200 C 40,100 100,40 200,40 L 300,40 C 340,40 370,60 370,100 C 370,140 340,165 300,165 L 265,165 C 232,165 218,185 238,210 C 258,235 310,230 345,205 C 385,177 410,140 410,210 C 410,305 340,340 200,340 Z"/>
+          <line x1="188" y1="334" x2="212" y2="334" stroke="var(--text-primary)" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.2"/>
+          <circle class="sdot a" cx="40" cy="200" r="3.5" fill="var(--green)"/>
+          <circle class="sdot b" cx="300" cy="165" r="3.5" fill="var(--purple)"/>
+          <circle class="sdot c" cx="200" cy="340" r="3.5" fill="var(--text-secondary)"/>
+          <circle class="car-el" id="car" cx="200" cy="340" r="4.5" filter="url(#cg)"/>
+        </svg>
+        <span class="slbl slbl-1">S1</span>
+        <span class="slbl slbl-2">S2</span>
+        <span class="slbl slbl-3">S3 / Finish</span>
+        <div class="trk-center">
+          <div class="gantry" id="gantry">
+            <div class="gl"><div class="b"></div></div>
+            <div class="gl"><div class="b"></div></div>
+            <div class="gl"><div class="b"></div></div>
+            <div class="gl"><div class="b"></div></div>
+            <div class="gl"><div class="b"></div></div>
+          </div>
+          <span class="trk-lbl" id="trkLbl">Lights Out</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer class="tele">
+  <div class="tg">
+    <div class="ti"><span class="tk">Modules</span><span class="tv">3</span></div>
+    <div class="ti"><span class="tk">Status</span><span class="tv g">Online</span></div>
+    <div class="ti"><span class="tk">Season</span><span class="tv">2026</span></div>
+    <div class="ti"><span class="tk">Build</span><span class="tv" style="color:var(--text-secondary)">1.0.0</span></div>
+  </div>
+  <div class="tr">
+    <div class="tc"><div class="cc cc-s"></div><span class="cn">Soft</span></div>
+    <div class="tc"><div class="cc cc-m"></div><span class="cn">Med</span></div>
+    <div class="tc"><div class="cc cc-h"></div><span class="cn">Hard</span></div>
+  </div>
+</footer>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* Clock */
+const ck = document.getElementById('clock');
+const ut = () => { ck.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false }); };
+ut(); setInterval(ut, 1000);
+
+/* Track path length */
+const tAct = document.getElementById('tAct');
+const tGlow = document.getElementById('tGlow');
+if (tAct) {
+  const l = tAct.getTotalLength();
+  tAct.style.setProperty('--tl', l);
+  tGlow.style.setProperty('--tl', l);
+}
+
+/* Car animation */
+const tRef = document.getElementById('tRef');
+const car = document.getElementById('car');
+let prog = 0;
+const spd = 0.00032;
+const moveCar = () => {
+  if (!tRef || !car) return;
+  prog = (prog + spd) % 1;
+  const pt = tRef.getPointAtLength(prog * tRef.getTotalLength());
+  car.setAttribute('cx', pt.x);
+  car.setAttribute('cy', pt.y);
+  requestAnimationFrame(moveCar);
+};
+setTimeout(() => requestAnimationFrame(moveCar), 2000);
+
+/* Lights sequence */
+const gls = document.querySelectorAll('#gantry .gl');
+const lbl = document.getElementById('trkLbl');
+gls.forEach((g, i) => {
+  setTimeout(() => g.classList.add('on'), 1600 + i * 500);
+});
+setTimeout(() => {
+  gls.forEach(g => g.classList.remove('on'));
+  lbl.textContent = 'Go Go Go';
+  lbl.style.color = 'var(--green)';
+  showToast("It's lights out and away we go!");
+  setTimeout(() => { lbl.textContent = 'Race Active'; lbl.style.color = ''; }, 3000);
+}, 1600 + 5 * 500 + 350);
+
+/* Toasts */
+const tb = document.getElementById('toasts');
+let q = [], busy = false;
+function showToast(m) { q.push(m); if (!busy) drain(); }
+function drain() {
+  if (!q.length) { busy = false; return; }
+  busy = true;
+  const m = q.shift();
+  const e = document.createElement('div');
+  e.className = 'toast';
+  e.innerHTML = '<div class="toast-h"><svg viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 1.5"/></svg><span>Team Radio</span></div><p>' + m + '</p>';
+  tb.appendChild(e);
+  setTimeout(() => { e.classList.add('exit'); setTimeout(() => { e.remove(); drain(); }, 280); }, 3000);
+}
+
+/* Module clicks */
+const mn = { archives: 'F1 Archives', predictions: 'Predictions', pomodoro: 'Pomodoro' };
+document.querySelectorAll('.mod-btn').forEach(b => {
+  b.addEventListener('click', e => {
+    e.preventDefault();
+    showToast('Loading ' + mn[b.dataset.m] + '... Stand by.');
+  });
+});
+</script>
+</body>
+</html>
