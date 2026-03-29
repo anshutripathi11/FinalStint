@@ -4,7 +4,7 @@ A full-stack F1 data explorer powered by **FastF1** + **FastAPI** + **React**. B
 
 ---
 
-## ⚡ Quick Start (2 minutes)
+## ⚡ Quick Start
 
 ### 1. Backend
 
